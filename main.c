@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
-
 #define MAX_STR 32
 #define MAX_USERS 10
 #define LOG_FILE "system_calls.log"
@@ -43,7 +42,6 @@ void view_logs() {
     fclose(f);
 }
 
-/* ================== AUTH ================== */
 bool register_user(const char* u, const char* p, Role r) {
     if (user_count >= MAX_USERS) return false;
     for (int i=0; i<user_count; i++) if (!strcmp(users[i].user, u)) return false;
@@ -69,7 +67,6 @@ User* login_user(const char* u, const char* p) {
     printf("User not found.\n"); return NULL;
 }
 
-/* ================== SECURE OS SYSCALLS ================== */
 int check_access(User* u, Role req_role, const char* call) {
     if (!u->approved || u->locked) { 
         log_activity(u, call, 0, "Security Check Failed"); return 0; 
@@ -96,7 +93,7 @@ void secure_read(User* u, const char* fn) {
 }
 
 void secure_write(User* u, const char* fn, const char* content) {
-    if (!check_access(u, ROLE_USER, "WRITE")) return;
+    if (!check_access(u, ROLE_ADMIN, "WRITE")) return;
     FILE *f = fopen(fn, "w");
     if (!f) { log_activity(u, "WRITE", 0, "File open error"); return; }
     
@@ -117,7 +114,7 @@ void secure_delete(User* u, const char* fn) {
     }
 }
 
-/* ================== MENUS ================== */
+
 void admin_manage() {
     int c; char target[MAX_STR];
     printf("\n--- Admin Management ---\n1. List Users\n2. Approve\n3. Unlock\nChoice: ");
@@ -163,7 +160,7 @@ void authenticated_menu(User* u) {
 }
 
 int main() {
-    // Initialize default accounts
+
     register_user("admin", "admin123", ROLE_ADMIN); users[0].approved = true;
     register_user("user", "user123", ROLE_USER); users[1].approved = true;
     

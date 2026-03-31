@@ -117,9 +117,9 @@ app.post('/api/write', (req, res) => {
     if (!auth.success) return res.json({ success: false, status: "Authentication Failed" });
     
     const user = auth.user;
-    if (user.role !== ROLE_ADMIN && user.role !== ROLE_USER) {
-        log_activity(user.username, user.role, "WRITE", 0, "RBAC Limit");
-        return res.json({ success: false, status: "Access Denied: Insufficient Permissions" });
+    if (user.role !== ROLE_ADMIN) {
+        log_activity(user.username, user.role, "WRITE", 0, "RBAC Limit - Requires ADMIN");
+        return res.json({ success: false, status: "Access Denied: Only ADMIN can write" });
     }
 
     try {

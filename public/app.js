@@ -8,12 +8,6 @@ async function handleAuth() {
     
     if (!u || !p) { msg.className='msg error'; msg.innerText='Please enter both username and password.'; return; }
     
-    // Only allow admin login based on user request "just admin and admin123 thats it"
-    if (u !== 'admin' || p !== 'admin123') {
-        msg.className='msg error'; msg.innerText='Access Denied: Only Admin is permitted.';
-        return;
-    }
-    
     const res = await fetch('/api/login', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username: u, password: p})
@@ -24,7 +18,7 @@ async function handleAuth() {
         currentUser = u; currentPass = p;
         document.getElementById('auth-screen').classList.remove('active');
         document.getElementById('main-screen').classList.add('active');
-        document.getElementById('user-badge').innerText = `Role: ADMIN`;
+        document.getElementById('user-badge').innerText = `Role: ${data.role === 1 ? 'ADMIN' : 'USER'}`;
         fetchLogs();
         msg.innerText = '';
     } else {
