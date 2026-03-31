@@ -4,6 +4,8 @@ A secure simulation layer for system calls with **authentication**, **role-based
 
 ---
 
+<img width="2940" height="1912" alt="image" src="https://github.com/user-attachments/assets/71972b5e-b1a4-4588-9258-0db4f2bc46d6" />
+
 ## ✨ Features
 
 ### 🛡️ Secure File Operations
