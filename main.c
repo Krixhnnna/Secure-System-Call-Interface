@@ -6,8 +6,25 @@
 #define MAX_STR 32
 #define MAX_USERS 10
 #define LOG_FILE "system_calls.log"
+#define MAX_LOG_SIZE 50000
 
 typedef enum { ROLE_USER, ROLE_ADMIN, ROLE_GUEST } Role;
+
+void hash_password(const char *str, char *output) {
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    snprintf(output, MAX_STR, "%lx", hash);
+}
+
+bool is_valid_filename(const char* fn) {
+    if (strchr(fn, '/') != NULL || strchr(fn, '\\') != NULL || strstr(fn, "..") != NULL) {
+        return false;
+    }
+    return true;
+}
 
 typedef struct {
     char user[MAX_STR];
@@ -26,9 +43,17 @@ void log_activity(User* u, const char* call, int status, const char* msg) {
     time_t now = time(NULL); char* date = ctime(&now); date[strlen(date)-1] = '\0';
     FILE *f = fopen(LOG_FILE, "a");
     if (f) {
-        fprintf(f, "[%s] User: %s | Role: %d | Syscall: %s | Status: %s | Details: %s\n",
-            date, u ? u->user : "UNKNOWN", u ? u->role : -1, call, status ? "ALLOWED" : "DENIED", msg);
-        fclose(f);
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+        if (size > MAX_LOG_SIZE) {
+            fclose(f);
+            f = fopen(LOG_FILE, "w"); // Truncate the file cleanly
+        }
+        if (f) {
+            fprintf(f, "[%s] User: %s | Role: %d | Syscall: %s | Status: %s | Details: %s\n",
+                date, u ? u->user : "UNKNOWN", u ? u->role : -1, call, status ? "ALLOWED" : "DENIED", msg);
+            fclose(f);
+        }
     }
 }
 
@@ -48,7 +73,13 @@ bool register_user(const char* u, const char* p, Role r) {
     
     User new_usr = { .role=r, .approved=false, .locked=false, .fails=0 };
     strncpy(new_usr.user, u, MAX_STR);
-    strncpy(new_usr.pass, p, MAX_STR);
+    new_usr.user[MAX_STR - 1] = '\0';
+    
+    char hashed_pass[MAX_STR];
+    hash_password(p, hashed_pass);
+    strncpy(new_usr.pass, hashed_pass, MAX_STR);
+    new_usr.pass[MAX_STR - 1] = '\0';
+    
     users[user_count++] = new_usr;
     return true;
 }
@@ -58,7 +89,10 @@ User* login_user(const char* u, const char* p) {
         if (!strcmp(users[i].user, u)) {
             if (users[i].locked) { printf("Account LOCKED.\n"); return NULL; }
             if (!users[i].approved) { printf("Pending approval.\n"); return NULL; }
-            if (!strcmp(users[i].pass, p)) { users[i].fails = 0; return &users[i]; }
+            
+            char hashed_input[MAX_STR];
+            hash_password(p, hashed_input);
+            if (!strcmp(users[i].pass, hashed_input)) { users[i].fails = 0; return &users[i]; }
             
             if (++users[i].fails >= 3) users[i].locked = true;
             printf("Wrong password.\n"); return NULL;
@@ -81,6 +115,7 @@ int check_access(User* u, Role req_role, const char* call) {
 
 void secure_read(User* u, const char* fn) {
     if (!check_access(u, ROLE_USER, "READ")) return;
+    if (!is_valid_filename(fn)) { log_activity(u, "READ", 0, "Invalid filename block"); printf("[ERROR] Path traversal blocked.\n"); return; }
     FILE *f = fopen(fn, "r");
     if (!f) { log_activity(u, "READ", 0, "File open error"); perror("[ERROR]"); return; }
     
@@ -94,6 +129,7 @@ void secure_read(User* u, const char* fn) {
 
 void secure_write(User* u, const char* fn, const char* content) {
     if (!check_access(u, ROLE_ADMIN, "WRITE")) return;
+    if (!is_valid_filename(fn)) { log_activity(u, "WRITE", 0, "Invalid filename block"); printf("[ERROR] Path traversal blocked.\n"); return; }
     FILE *f = fopen(fn, "w");
     if (!f) { log_activity(u, "WRITE", 0, "File open error"); return; }
     
@@ -105,6 +141,7 @@ void secure_write(User* u, const char* fn, const char* content) {
 
 void secure_delete(User* u, const char* fn) {
     if (!check_access(u, ROLE_ADMIN, "DELETE")) return;
+    if (!is_valid_filename(fn)) { log_activity(u, "DELETE", 0, "Invalid filename block"); printf("[ERROR] Path traversal blocked.\n"); return; }
     if (remove(fn) == 0) {
         log_activity(u, "DELETE", 1, fn);
         printf("[SUCCESS] File '%s' permanently deleted.\n", fn);
@@ -152,7 +189,14 @@ void authenticated_menu(User* u) {
                     secure_write(u, f, content); break;
             case 3: printf("Filename: "); fgets(f, sizeof(f), stdin); f[strcspn(f,"\n")]=0; secure_delete(u, f); break;
             case 4: view_logs(); break;
-            case 6: if (u->role == ROLE_ADMIN) admin_manage(); break;
+            case 6: 
+                if (u->role == ROLE_ADMIN) {
+                    admin_manage();
+                } else {
+                    log_activity(u, "ADMIN_MANAGE", 0, "Attempted unauthorized menu access");
+                    printf("[ACCESS DENIED] Unauthorized Menu Option.\n");
+                }
+                break;
             case 5: case 7: return;
             default: printf("Invalid choice.\n");
         }
