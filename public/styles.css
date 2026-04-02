@@ -92,7 +92,9 @@ body {
 
 .gradient-text {
     background: linear-gradient(to right, #FFF, #A5B4FC);
-    -webkit-background-clip: text; color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     font-size: 1.8rem; letter-spacing: -0.5px;
     margin-bottom: 0.5rem; font-weight: 600;
 }
@@ -285,3 +287,39 @@ body {
 .msg { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; font-size: 0.9rem; text-align: center; display: none; }
 .msg.error { display: block; background: rgba(239, 68, 68, 0.1); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, 0.2); }
 .msg.success { display: block; background: rgba(16, 185, 129, 0.1); color: #6EE7B7; border: 1px solid rgba(16, 185, 129, 0.2); }
+
+/* Admin Users Table Setup */
+.admin-section {
+    margin-top: 2rem;
+    padding: 2.5rem;
+}
+.table-responsive {
+    overflow-x: auto;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+}
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+.user-table th, .user-table td {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 0.9rem;
+}
+.user-table th {
+    background: rgba(255,255,255,0.03);
+    color: #CBD5E1;
+    font-weight: 500;
+}
+.user-table tr:last-child td { border-bottom: none; }
+.user-table input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+.user-table .badge.warning { background: rgba(245,158,11,0.1); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }

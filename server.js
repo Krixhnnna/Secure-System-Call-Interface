@@ -14,8 +14,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const ROLE_USER = 0, ROLE_ADMIN = 1, ROLE_GUEST = 2;
 
 let users = [
-    { username: 'admin', password: 'admin123', role: ROLE_ADMIN, is_approved: true, is_locked: false, failed_attempts: 0 },
-    { username: 'user', password: 'user123', role: ROLE_USER, is_approved: true, is_locked: false, failed_attempts: 0 }
+    { username: 'admin', password: 'admin123', role: ROLE_ADMIN, is_approved: true, is_locked: false, failed_attempts: 0, perm_read: true, perm_write: true, perm_delete: true },
+    { username: 'user', password: 'user123', role: ROLE_USER, is_approved: true, is_locked: false, failed_attempts: 0, perm_read: true, perm_write: false, perm_delete: false }
 ];
 
 // --- Audit Logger ---
@@ -79,7 +79,10 @@ app.post('/api/register', (req, res) => {
         role: role || ROLE_USER, 
         is_approved: false, 
         is_locked: false, 
-        failed_attempts: 0
+        failed_attempts: 0,
+        perm_read: true,
+        perm_write: (role === ROLE_ADMIN),
+        perm_delete: (role === ROLE_ADMIN)
     });
     
     res.json({ success: true });
@@ -93,9 +96,9 @@ app.post('/api/read', (req, res) => {
     if (!auth.success) return res.json({ success: false, status: "Authentication Failed" });
     
     const user = auth.user;
-    if (user.role !== ROLE_ADMIN && user.role !== ROLE_USER) {
-        log_activity(user.username, user.role, "READ", 0, "RBAC Limit - Role not allowed");
-        return res.json({ success: false, status: "Access Denied: Insufficient Permissions" });
+    if (!user.perm_read) {
+        log_activity(user.username, user.role, "READ", 0, "Permission Denied - No READ Access");
+        return res.json({ success: false, status: "Access Denied: You lack READ permissions." });
     }
 
     try {
@@ -117,9 +120,9 @@ app.post('/api/write', (req, res) => {
     if (!auth.success) return res.json({ success: false, status: "Authentication Failed" });
     
     const user = auth.user;
-    if (user.role !== ROLE_ADMIN) {
-        log_activity(user.username, user.role, "WRITE", 0, "RBAC Limit - Requires ADMIN");
-        return res.json({ success: false, status: "Access Denied: Only ADMIN can write" });
+    if (!user.perm_write) {
+        log_activity(user.username, user.role, "WRITE", 0, "Permission Denied - No WRITE Access");
+        return res.json({ success: false, status: "Access Denied: You lack WRITE permissions." });
     }
 
     try {
@@ -140,9 +143,9 @@ app.post('/api/delete', (req, res) => {
     if (!auth.success) return res.json({ success: false, status: "Authentication Failed" });
     
     const user = auth.user;
-    if (user.role !== ROLE_ADMIN) {
-        log_activity(user.username, user.role, "DELETE", 0, "RBAC Limit - Requires ADMIN");
-        return res.json({ success: false, status: "Access Denied: Only ADMIN can delete" });
+    if (!user.perm_delete) {
+        log_activity(user.username, user.role, "DELETE", 0, "Permission Denied - No DELETE Access");
+        return res.json({ success: false, status: "Access Denied: You lack DELETE permissions." });
     }
 
     try {
@@ -192,6 +195,44 @@ app.post('/api/unlock', (req, res) => {
         target.is_locked = false;
         target.failed_attempts = 0;
         log_activity(username, auth.user.role, "UNLOCK", 1, `Unlocked ${target_user}`);
+        res.json({ success: true });
+    } else {
+        res.json({ success: false, error: "Target not found" });
+    }
+});
+
+// Admin: Get Users List
+app.post('/api/users', (req, res) => {
+    const { username, password } = req.body;
+    const auth = authenticate(username, password);
+    if (!auth.success || auth.user.role !== ROLE_ADMIN) return res.json({ success: false, error: "Requires Admin" });
+    
+    // Return sanitized users list
+    const sanitized_users = users.map(u => ({
+        username: u.username,
+        role: u.role,
+        is_approved: u.is_approved,
+        is_locked: u.is_locked,
+        perm_read: u.perm_read,
+        perm_write: u.perm_write,
+        perm_delete: u.perm_delete
+    }));
+    
+    res.json({ success: true, users: sanitized_users });
+});
+
+// Admin: Update Permissions
+app.post('/api/permissions', (req, res) => {
+    const { username, password, target_user, perm_read, perm_write, perm_delete } = req.body;
+    const auth = authenticate(username, password);
+    if (!auth.success || auth.user.role !== ROLE_ADMIN) return res.json({ success: false, error: "Requires Admin" });
+    
+    let target = users.find(u => u.username === target_user);
+    if (target) {
+        target.perm_read = !!perm_read;
+        target.perm_write = !!perm_write;
+        target.perm_delete = !!perm_delete;
+        log_activity(username, auth.user.role, "PERMISSIONS", 1, `Updated perms for ${target_user}`);
         res.json({ success: true });
     } else {
         res.json({ success: false, error: "Target not found" });

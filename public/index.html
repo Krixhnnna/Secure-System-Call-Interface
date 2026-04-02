@@ -26,7 +26,7 @@
                 </svg>
             </div>
             <h1 class="gradient-text">Secure System Call</h1>
-            <p class="subtitle">Enter your admin credentials</p>
+            <p class="subtitle" id="auth-subtitle">Enter your credentials</p>
 
             <div id="auth-msg" class="msg"></div>
 
@@ -48,7 +48,12 @@
                 <input type="password" id="password" placeholder="Password" />
             </div>
 
-            <button class="btn-glow" onclick="handleAuth()">Authenticate Session</button>
+            <button class="btn-glow" id="auth-btn" onclick="handleAuth()">Authenticate Session</button>
+            
+            <div style="margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+                <span id="toggle-lbl">Don't have an account?</span>
+                <a href="#" id="toggle-link" onclick="toggleAuthMode(); return false;" style="color: var(--primary); font-weight: 500; text-decoration: none; margin-left: 0.2rem;">Register</a>
+            </div>
         </div>
     </div>
 
@@ -63,6 +68,7 @@
                 </div>
                 <h2>Secure System Call</h2>
                 <span id="user-badge" class="badge">ADMIN</span>
+                <span id="pending-badge" class="badge" style="display: none; background: rgba(239, 68, 68, 0.15); color: #FCA5A5; border-color: rgba(239, 68, 68, 0.3);">0 Pending</span>
             </div>
             <button class="outline-btn" onclick="logout()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -164,6 +170,31 @@
                     <div class="mac-body">
                         <pre id="log-output">Loading secure audit trail...</pre>
                     </div>
+                </div>
+            </section>
+
+            <!-- Admin Manage Permissions -->
+            <section id="admin-panel" class="glass-panel admin-section" style="display: none; grid-column: 1 / -1;">
+                <div class="section-header">
+                    <h3>Manage Users & Permissions</h3>
+                    <p>Fine-grained access control list (ACL) management.</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Status</th>
+                                <th>Read</th>
+                                <th>Write</th>
+                                <th>Delete</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <!-- Populated via app.js -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
